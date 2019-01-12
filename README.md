@@ -7,7 +7,7 @@ The source is based on the project of Andy Doro: https://github.com/andydoro/Wor
 
 I've had to heavily modify the code to fit it within 5 KB of Flash and 512 bytes of RAM.
 
-![Finished](pictures/img1.png)
+![Finished](https://github.com/reini1305/8x8wordclock/raw/master/pictures/img1.jpg)
 
 Hardware
 -------
