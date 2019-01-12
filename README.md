@@ -16,6 +16,8 @@ Hardware
  - [DS3231 RTC breakout](https://www.neuhold-elektronik.at/catshop/product_info.php?products_id=7269) (or similar)
  - [Wordclock kit 8x8](https://shop.cyntech.co.uk/products/wordclock-kit)
  - A switch to select the color mode (optional)
+ - 3D print the STL in the 3dmodels/ folder
+ - 4 M3x15 screws
 
 Wiring
 -------
