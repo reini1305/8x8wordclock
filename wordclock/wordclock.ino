@@ -8,6 +8,8 @@
 #include <EEPROM.h>
 #include <Bounce2.h>
 
+//#define PROGRAM_TIME  // Uncomment this if you want to set the time to the RTC
+
 // define masks for each word. we add them with "bitwise or" to generate a mask for the entire "phrase".
 #define MFIVE    minute_mask |= 0x0F0000       // these are in hexadecimal
 #define MTEN     minute_mask |= 0x1A
@@ -23,8 +25,8 @@
 #define SHIFTDELAY      50 // controls color shifting speed
 #define READDELAY    60000
 #define DAYBRIGHTNESS   80
-#define NIGHTBRIGHTNESS 40
-#define NUM_MODES        6
+#define NIGHTBRIGHTNESS 20
+#define NUM_MODES        8
 
 // cutoff times for day / night brightness. feel free to modify.
 #define MORNINGCUTOFF    7  // when does daybrightness begin?   7am
@@ -34,9 +36,8 @@ Adafruit_NeoPixel matrix = Adafruit_NeoPixel(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KH
 RTC_DS3231 rtc;
 Bounce debouncer = Bounce();
 //                                   TWELVE,   ONE,        TWO,       THREE,  FOUR,       FIVE, SIX,   SEVEN,    EIGHT,NINE,       TEN,       ELEVEN
-const uint32_t digits[12] PROGMEM = {0x6F0000, 0x92000000, 0x2030000, 0xF800, 0x0F000000, 0x0F, 0x700, 0xF00100, 0xF8, 0xF0000000, 0x080808,  0xFC0000};
+const uint32_t digits[12] PROGMEM = {0x6F0000, 0x92000000, 0x2030000, 0xF800, 0x0F000000, 0x0F, 0x700, 0xF00100, 0xF8, 0xF0000000, 0x808080,  0xFC0000};
 const uint32_t color_black = matrix.Color(0,0,0);
-const uint32_t color_white = matrix.Color(255,255,255);
 uint32_t       minute_mask;
 uint32_t       hour_mask;
 uint8_t        shift;
@@ -55,16 +56,18 @@ void setup() {
   matrix.begin();
   matrix.setBrightness(NIGHTBRIGHTNESS);
   rtc.begin();
-
+#ifdef PROGRAM_TIME
   if (rtc.lostPower()) {
     rtc.adjust(DateTime(__DATE__, __TIME__));
   }
+#endif
   debouncer.attach(BUTTON_PIN,INPUT_PULLUP); // Attach the dedebouncer to a pin with INPUT_PULLUP mode
   debouncer.interval(25); // Use a debounce interval of 25 milliseconds
   current_mode = EEPROM.read(0);
 }
 
 void loop() {
+#ifndef PROGRAM_TIME
   unsigned long now = millis();
   if( now - previousTimeMillis > READDELAY) { // only update the time once per minute
     previousTimeMillis = now;
@@ -87,6 +90,7 @@ void loop() {
     applyMask(minute_mask, 0);
     applyMask(hour_mask, 32);
   }
+#endif
 }
 
 
@@ -162,7 +166,7 @@ void applyMask(uint32_t mask, byte offset) {
     if (!bitRead(mask,i-offset)) {
       matrix.setPixelColor(i, color_black);
     } else {
-      uint16_t current_brightness = ((i * 4) + shift++) % 256;
+      uint16_t current_brightness = ((i * 4) + shift) % 256;
       uint32_t new_color;
       switch (current_mode){ 
         case 0: // Rainbow
@@ -177,17 +181,23 @@ void applyMask(uint32_t mask, byte offset) {
         case 3: // Blue pulse
           new_color = matrix.Color(current_brightness, current_brightness, 255);
           break;
-        case 4: // White pulse
-          new_color = matrix.Color(current_brightness, current_brightness, current_brightness);
+        case 4: // Just red
+          new_color = matrix.Color(255,0,0);
+          break;
+        case 5: // Just green
+          new_color = matrix.Color(0,255,0);
+          break;
+        case 6: // Just blue
+          new_color = matrix.Color(0,0,255);
           break;
         default: // Just white
-          new_color = color_white;
+          new_color = matrix.Color(255,255,255);
           break;
       }
       matrix.setPixelColor(i, (new_color));
     }
   }
-
+  shift++;
   matrix.show(); // show it!
 }
 
