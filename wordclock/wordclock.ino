@@ -22,20 +22,19 @@
 #define NUM_LEDS        64
 #define SHIFTDELAY      50 // controls color shifting speed
 #define READDELAY    60000
-// brightness based on time of day- could try warmer colors at night?
 #define DAYBRIGHTNESS   80
 #define NIGHTBRIGHTNESS 40
 #define NUM_MODES        6
 
 // cutoff times for day / night brightness. feel free to modify.
 #define MORNINGCUTOFF    7  // when does daybrightness begin?   7am
-#define NIGHTCUTOFF     22 // when does nightbrightness begin? 10pm
+#define NIGHTCUTOFF     19 // when does nightbrightness begin?  7pm
 
 Adafruit_NeoPixel matrix = Adafruit_NeoPixel(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 RTC_DS3231 rtc;
 Bounce debouncer = Bounce();
-//                                   TWELVE,   ONE,        TWO,      THREE,  FOUR,       FIVE, SIX,   SEVEN,    EIGHT,NINE,       TEN,        ELEVEN
-const uint32_t digits[12] PROGMEM = {0x6F0000, 0x92000000, 0x2030000, 0xF800, 0x0F000000, 0x0F, 0x700, 0xF00100, 0x1F, 0xF0000000, 0x080808,  0xFC0000};
+//                                   TWELVE,   ONE,        TWO,       THREE,  FOUR,       FIVE, SIX,   SEVEN,    EIGHT,NINE,       TEN,       ELEVEN
+const uint32_t digits[12] PROGMEM = {0x6F0000, 0x92000000, 0x2030000, 0xF800, 0x0F000000, 0x0F, 0x700, 0xF00100, 0xF8, 0xF0000000, 0x080808,  0xFC0000};
 const uint32_t color_black = matrix.Color(0,0,0);
 const uint32_t color_white = matrix.Color(255,255,255);
 uint32_t       minute_mask;
@@ -94,11 +93,11 @@ void loop() {
 // ----------------- Helper Functions ---------------------------
 
 inline void readTime(void) {
-  hour   = (rtc.now().hour()) % 12;
+  hour   = rtc.now().hour();
   minute = rtc.now().minute() + 2;
   if (minute > 59) {
     minute -= 60;
-    hour = (hour + 1) % 12;
+    hour = (hour + 1) % 24;
   }
 }
 
@@ -140,12 +139,12 @@ inline void calculateMask(void) {
   // Now handle the hours
   if ((minute < 5))
   {
-    hour_mask |= pgm_read_dword(&digits[hour]);
+    hour_mask |= pgm_read_dword(&digits[hour%12]);
   }
   else if ((minute < 35) && (minute > 4))
   {
     PAST;
-    hour_mask |= pgm_read_dword(&digits[hour]);
+    hour_mask |= pgm_read_dword(&digits[hour%12]);
   }
   else
   {
