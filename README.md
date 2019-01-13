@@ -22,7 +22,11 @@ Hardware
 Wiring
 -------
 
-SOON
+- Connect SDA and SCL of the RTC to the Trinket pins 0 and 2 respectively, VCC to the 5V pin
+- DIN of the RGB matrix goes to pin 1
+- 5VIN of the RGB matrix goes to the USB pin
+- optional: a switch between pin 3 and GND
+
  
 Software
 -------
