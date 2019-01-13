@@ -41,6 +41,7 @@ const uint32_t color_black = matrix.Color(0,0,0);
 uint32_t       minute_mask;
 uint32_t       hour_mask;
 uint8_t        shift;
+boolean        shift_up;
 uint8_t        hour;
 uint8_t        minute;
 byte           current_mode;
@@ -64,6 +65,8 @@ void setup() {
   debouncer.attach(BUTTON_PIN,INPUT_PULLUP); // Attach the dedebouncer to a pin with INPUT_PULLUP mode
   debouncer.interval(25); // Use a debounce interval of 25 milliseconds
   current_mode = EEPROM.read(0);
+  shift = 0;
+  shift_up = true;
 }
 
 void loop() {
@@ -166,20 +169,21 @@ void applyMask(uint32_t mask, byte offset) {
     if (!bitRead(mask,i-offset)) {
       matrix.setPixelColor(i, color_black);
     } else {
-      uint16_t current_brightness = ((i * 4) + shift) % 256;
+      uint16_t current_brightness = ((i * 4) + shift);
+      uint8_t range_brightness = keepInRange(current_brightness);
       uint32_t new_color;
       switch (current_mode){ 
         case 0: // Rainbow
-          new_color = Wheel(current_brightness);
+          new_color = Wheel(current_brightness % 256);
           break;
         case 1: // Red pulse
-          new_color = matrix.Color(255, current_brightness, current_brightness);
+          new_color = matrix.Color(255, range_brightness, range_brightness);
           break;
         case 2: // Green pulse
-          new_color = matrix.Color(current_brightness, 255, current_brightness);
+          new_color = matrix.Color(range_brightness, 255, range_brightness);
           break;
         case 3: // Blue pulse
-          new_color = matrix.Color(current_brightness, current_brightness, 255);
+          new_color = matrix.Color(range_brightness, range_brightness, 255);
           break;
         case 4: // Just red
           new_color = matrix.Color(255,0,0);
@@ -197,8 +201,16 @@ void applyMask(uint32_t mask, byte offset) {
       matrix.setPixelColor(i, (new_color));
     }
   }
-  shift++;
   matrix.show(); // show it!
+  if (current_mode >= 1 && current_mode <= 3) {
+    if (shift == 0)
+      shift_up = true;
+    if (shift == 255)
+      shift_up = false;
+    shift += shift_up? 1 : -1;
+  } else {
+    shift++;
+  }
 }
 
 // Input a value 0 to 255 to get a color value.
@@ -214,4 +226,12 @@ uint32_t Wheel(byte WheelPos) {
   }
   WheelPos -= 170;
   return matrix.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+}
+
+uint8_t keepInRange(int16_t val) {
+  if (val>255)
+    return 255 - (val-255);
+  if (val < 0)
+    return -val;
+  return val;
 }
