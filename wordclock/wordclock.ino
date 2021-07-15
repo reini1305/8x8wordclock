@@ -26,11 +26,14 @@
 #define READDELAY    60000
 #define DAYBRIGHTNESS   80
 #define NIGHTBRIGHTNESS 20
+#define OFFBRIGHTNESS    5
 #define NUM_MODES        8
 
 // cutoff times for day / night brightness. feel free to modify.
 #define MORNINGCUTOFF    7  // when does daybrightness begin?   7am
 #define NIGHTCUTOFF     19 // when does nightbrightness begin?  7pm
+#define OFFCUTOFF       23
+#define ONCUTOFF         6
 
 Adafruit_NeoPixel matrix = Adafruit_NeoPixel(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 RTC_DS3231 rtc;
@@ -42,11 +45,13 @@ uint32_t       minute_mask;
 uint32_t       hour_mask;
 uint8_t        shift;
 boolean        shift_up;
-uint8_t        hour;
-uint8_t        minute;
+uint8_t        hour = 0;
+uint8_t        minute = 0;
 byte           current_mode;
 long unsigned  previousTimeMillis    = -READDELAY;
 long unsigned  previousDisplayMillis = -SHIFTDELAY;
+long unsigned  pressedMillis = 0;
+byte           hour_offset = 0;
 
 void setup() {
   // This is for Trinket 5V 16MHz, you can remove these three lines if you are not using a Trinket
@@ -58,15 +63,21 @@ void setup() {
   matrix.setBrightness(NIGHTBRIGHTNESS);
   rtc.begin();
 #ifdef PROGRAM_TIME
-  if (rtc.lostPower()) {
-    rtc.adjust(DateTime(__DATE__, __TIME__));
-  }
+  rtc.adjust(DateTime(__DATE__, __TIME__));
 #endif
   debouncer.attach(BUTTON_PIN,INPUT_PULLUP); // Attach the dedebouncer to a pin with INPUT_PULLUP mode
   debouncer.interval(25); // Use a debounce interval of 25 milliseconds
   current_mode = EEPROM.read(0);
+  hour_offset = EEPROM.read(1);
   shift = 0;
   shift_up = true;
+  
+  for(hour=0;hour<12;hour++,minute+=5) {
+    calculateMask();
+    applyMask(minute_mask, 0);
+    applyMask(hour_mask, 32);
+    delay(200);
+  }
 }
 
 void loop() {
@@ -83,8 +94,20 @@ void loop() {
   debouncer.update(); 
    
   if ( debouncer.fell() ) {
-    current_mode = (current_mode + 1) % NUM_MODES;
-    EEPROM.write(0,current_mode); 
+    pressedMillis = millis();
+  }
+  if ( debouncer.rose() ) {
+    
+    if ( millis() - pressedMillis > 1000 ){ // if pressed longer than a second, change time offset
+      hour_offset = ( hour_offset + 1 ) % 3;
+      EEPROM.write( 1, hour_offset );
+      readTime();
+      calculateMask();
+    }
+    else {
+      current_mode = ( current_mode + 1 ) % NUM_MODES;
+      EEPROM.write( 0, current_mode ); 
+    }
   }
 
   // update screen
@@ -100,7 +123,7 @@ void loop() {
 // ----------------- Helper Functions ---------------------------
 
 inline void readTime(void) {
-  hour   = rtc.now().hour();
+  hour   = ( rtc.now().hour() + hour_offset - 1 ) % 24;
   minute = rtc.now().minute() + 2;
   if (minute > 59) {
     minute -= 60;
@@ -111,7 +134,9 @@ inline void readTime(void) {
 inline void adjustBrightness(void) {
   
   //change brightness if it's night time
-  if (hour < MORNINGCUTOFF || hour >= NIGHTCUTOFF) {
+  if (hour < ONCUTOFF || hour >= OFFCUTOFF) {
+    matrix.setBrightness(OFFBRIGHTNESS);
+  } else if (hour < MORNINGCUTOFF || hour >= NIGHTCUTOFF) {
     matrix.setBrightness(NIGHTBRIGHTNESS);
   } else {
     matrix.setBrightness(DAYBRIGHTNESS);
